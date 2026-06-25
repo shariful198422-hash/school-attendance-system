@@ -18,17 +18,29 @@ app.get('/', (req, res) => {
 });
 
 // Database connection
+// ============================================================
+// DATABASE CONNECTION - READ FROM ENVIRONMENT VARIABLES
+// ============================================================
 const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: 'root123',
-    database: 'school_attendance',
-    port: 3306,
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || 'root123',
+    database: process.env.DB_NAME || 'school_attendance',
+    port: parseInt(process.env.DB_PORT) || 3306,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
+// Log the connection config (helps debugging)
+console.log('📊 Database Configuration:');
+console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
+console.log(`   User: ${process.env.DB_USER || 'root'}`);
+console.log(`   Database: ${process.env.DB_NAME || 'school_attendance'}`);
+console.log(`   Port: ${parseInt(process.env.DB_PORT) || 3306}`);
 const promisePool = pool.promise();
 
 // ============================================================
