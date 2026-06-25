@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
 });
 
 // ============================================================
-// DATABASE CONNECTION - READ FROM ENVIRONMENT VARIABLES
+// DATABASE CONNECTION
 // ============================================================
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -39,9 +39,127 @@ console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
 console.log(`   User: ${process.env.DB_USER || 'root'}`);
 console.log(`   Database: ${process.env.DB_NAME || 'school_attendance'}`);
 console.log(`   Port: ${parseInt(process.env.DB_PORT) || 3306}`);
-console.log(`   SSL: ${process.env.DB_SSL === 'true' ? 'Enabled' : 'Disabled'}`);
 
 const promisePool = pool.promise();
+
+// ============================================================
+// USER LOGIN
+// ============================================================
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password required' });
+        }
+
+        const [rows] = await promisePool.query(
+            'SELECT * FROM users WHERE username = ?',
+            [username]
+        );
+
+        if (rows.length === 0) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const user = rows[0];
+
+        if (user.password !== password) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const token = Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
+
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
+
+        await promisePool.query(
+            'INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)',
+            [user.id, token, expiresAt]
+        );
+
+        res.json({
+            success: true,
+            message: 'Login successful',
+            token: token,
+            user: {
+                id: user.id,
+                username: user.username,
+                name: user.name,
+                role: user.role,
+                assigned_class: user.assigned_class,
+                assigned_section: user.assigned_section,
+                assigned_branch: user.assigned_branch
+            }
+        });
+
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// VERIFY TOKEN
+// ============================================================
+app.post('/api/verify', async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const [rows] = await promisePool.query(
+            'SELECT * FROM sessions WHERE token = ? AND expires_at > NOW()',
+            [token]
+        );
+
+        if (rows.length === 0) {
+            return res.status(401).json({ error: 'Invalid or expired token' });
+        }
+
+        const [userRows] = await promisePool.query(
+            'SELECT id, username, name, role, assigned_class, assigned_section, assigned_branch FROM users WHERE id = ?',
+            [rows[0].user_id]
+        );
+
+        if (userRows.length === 0) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        res.json({
+            success: true,
+            user: userRows[0]
+        });
+
+    } catch (error) {
+        console.error('Verify error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// LOGOUT
+// ============================================================
+app.post('/api/logout', async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        if (token) {
+            await promisePool.query(
+                'DELETE FROM sessions WHERE token = ?',
+                [token]
+            );
+        }
+
+        res.json({ success: true, message: 'Logged out successfully' });
+
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // ============================================================
 // GET FILTER OPTIONS - FIXED!
