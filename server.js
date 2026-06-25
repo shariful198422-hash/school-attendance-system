@@ -163,17 +163,16 @@ app.post('/api/logout', async (req, res) => {
 
 // ============================================================
 // GET FILTER OPTIONS - FIXED!
-// ============================================================
-app.get('/api/filters', async (req, res) => {
+// ============================================================app.get('/api/filters', async (req, res) => {
     try {
         const [branches] = await promisePool.query(
-            'SELECT DISTINCT branch FROM students WHERE branch IS NOT NULL AND branch != "" ORDER BY branch'
+            'SELECT DISTINCT branch FROM students WHERE branch IS NOT NULL ORDER BY branch'
         );
         const [classes] = await promisePool.query(
-            'SELECT DISTINCT class FROM students WHERE class IS NOT NULL AND class != "" ORDER BY class'
+            'SELECT DISTINCT class FROM students WHERE class IS NOT NULL ORDER BY class'
         );
         const [sections] = await promisePool.query(
-            'SELECT DISTINCT section FROM students WHERE section IS NOT NULL AND section != "" ORDER BY section'
+            'SELECT DISTINCT section FROM students WHERE section IS NOT NULL ORDER BY section'
         );
 
         console.log('Branches found:', branches.length);
@@ -190,7 +189,6 @@ app.get('/api/filters', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // ============================================================
 // GET STUDENTS
 // ============================================================
