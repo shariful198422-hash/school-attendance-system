@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Attendance System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 16px; }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        .header h1 { font-size: 20px; }
+        .header .subtitle { font-size: 14px; opacity: 0.9; margin-top: 4px; }
+        .header .date { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        .filters select {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            min-width: 80px;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .summary-card {
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .summary-card .number { font-size: 20px; font-weight: 700; }
+        .summary-card .label { font-size: 11px; color: #888; margin-top: 2px; }
+        .summary-card.total .number { color: #667eea; }
+        .summary-card.present .number { color: #4CAF50; }
+        .summary-card.absent .number { color: #f44336; }
+        .summary-card.late .number { color: #FF6B8A; }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .table-scroll { overflow-x: auto; padding: 0 4px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 500px;
+        }
+        thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        thead th {
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #666;
+        }
+        thead th:nth-child(4),
+        thead th:nth-child(5),
+        thead th:nth-child(6) {
+            text-align: center;
+            width: 70px;
+        }
+
+        tbody tr { border-bottom: 1px solid #f0f0f0; }
+        tbody tr:hover { background: #f8f9fa; }
+        tbody td { padding: 8px 6px; vertical-align: middle; }
+        tbody td:nth-child(4),
+        tbody td:nth-child(5),
+        tbody td:nth-child(6) { text-align: center; }
+
+        .student-name { font-weight: 500; color: #1a1a1a; }
+        .student-code { color: #888; font-size: 12px; }
+
+        /* ============================================
+           STATUS CELLS - COLORED BOXES IN ROWS
+           ============================================ */
+
+        .status-cell {
+            display: inline-block;
+            width: 50px;
+            height: 38px;
+            line-height: 38px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+            touch-action: manipulation;
+        }
+
+        /* PRESENT (P) - GREEN */
+        .status-cell.present {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+            box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+        }
+        .status-cell.present.inactive {
+            background: #c8e6c9;
+            color: #2e7d32;
+            border-color: #c8e6c9;
+            opacity: 0.7;
+            box-shadow: none;
+        }
+
+        /* ABSENT (A) - RED */
+        .status-cell.absent {
+            background: #f44336;
+            color: white;
+            border-color: #f44336;
+            box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+        }
+        .status-cell.absent.inactive {
+            background: #ffcdd2;
+            color: #b71c1c;
+            border-color: #ffcdd2;
+            opacity: 0.7;
+            box-shadow: none;
+        }
+
+        /* LATE (L) - LIGHT PINK */
+        .status-cell.late {
+            background: #FFB6C1;
+            color: #4a1a1a;
+            border-color: #FFB6C1;
+            box-shadow: 0 2px 4px rgba(255, 182, 193, 0.3);
+        }
+        .status-cell.late.inactive {
+            background: #f8bbd0;
+            color: #880e4f;
+            border-color: #f8bbd0;
+            opacity: 0.7;
+            box-shadow: none;
+        }
+
+        .status-cell:active { transform: scale(0.90); }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            flex: 1;
+            min-width: 120px;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-success { background: #4CAF50; color: white; }
+        .btn-danger { background: #f44336; color: white; }
+        .btn-outline { background: white; color: #666; border: 2px solid #ddd; }
+
+        .sms-log {
+            margin-top: 16px;
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            display: none;
+        }
+        .sms-log.show { display: block; }
+        .sms-log h3 {
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sms-log .sms-count {
+            background: #f44336;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .sms-log-item {
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid #667eea;
+        }
+        .sms-log-item .name { font-weight: 500; }
+        .sms-log-item .status-badge {
+            font-size: 12px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .sms-log-item .status-badge.absent { background: #ffebee; color: #f44336; }
+        .sms-log-item .status-badge.late { background: #fce4ec; color: #FF6B8A; }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.4s ease;
+            z-index: 999;
+            max-width: 90%;
+            text-align: center;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.success { background: #4CAF50; }
+        .toast.error { background: #f44336; }
+        .toast.info { background: #667eea; }
+
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .status-cell { width: 42px; height: 34px; line-height: 34px; font-size: 14px; }
+            .summary { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+            .summary-card { padding: 8px 4px; }
+            .summary-card .number { font-size: 17px; }
+            table { font-size: 13px; min-width: 380px; }
+            .btn { padding: 10px 16px; font-size: 13px; min-width: 80px; }
+            .filters select { padding: 8px 10px; font-size: 13px; }
+        }
+        @media (max-width: 400px) {
+            .summary { grid-template-columns: repeat(2, 1fr); }
+            .status-cell { width: 36px; height: 30px; line-height: 30px; font-size: 12px; }
+            table { font-size: 12px; min-width: 320px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast" class="toast"></div>
+
+    <div class="header">
+        <h1>📚 Attendance System</h1>
+        <div class="subtitle" id="classInfo">Loading...</div>
+        <div class="date" id="currentDate"></div>
+    </div>
+
+    <div class="filters">
+        <select id="branchFilter"><option value="Main">🏫 Main Branch</option></select>
+        <select id="classFilter"><option value="5">Class 5</option></select>
+        <select id="sectionFilter"><option value="A">Section A</option></select>
+    </div>
+
+    <div class="summary">
+        <div class="summary-card total"><div class="number" id="totalCount">0</div><div class="label">Total</div></div>
+        <div class="summary-card present"><div class="number" id="presentCount">0</div><div class="label">Present</div></div>
+        <div class="summary-card absent"><div class="number" id="absentCount">0</div><div class="label">Absent</div></div>
+        <div class="summary-card late"><div class="number" id="lateCount">0</div><div class="label">Late</div></div>
+    </div>
+
+    <div class="table-container">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th style="min-width:120px;">Name</th>
+                        <th style="width:80px;">Code</th>
+                        <th style="width:70px;text-align:center;">P</th>
+                        <th style="width:70px;text-align:center;">A</th>
+                        <th style="width:70px;text-align:center;">L</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceBody">
+                    <tr><td colspan="6" class="loading"><div class="spinner"></div>Loading students...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn btn-success" onclick="markAllPresent()">✅ All Present</button>
+        <button class="btn btn-danger" onclick="submitAttendance()">📨 Submit & Send SMS</button>
+        <button class="btn btn-outline" onclick="resetAttendance()">🔄 Reset</button>
+    </div>
+
+    <div class="sms-log" id="smsLog">
+        <h3>📨 SMS Alerts Ready to Send <span class="sms-count" id="smsCount">0</span></h3>
+        <div id="smsLogItems"></div>
+    </div>
+
+    <script>
+        // ============================================================
+        // API URL
+        // ============================================================
+        const API_URL = 'http://localhost:5000/api';
+
+        // ============================================================
+        // STATE
+        // ============================================================
+        let STUDENTS = [];
+        let attendanceData = [];
+        let pendingSMS = [];
+
+        // ============================================================
+        // FETCH STUDENTS
+        // ============================================================
+        async function fetchStudents() {
+            const classFilter = document.getElementById('classFilter').value;
+            const sectionFilter = document.getElementById('sectionFilter').value;
+            const branchFilter = document.getElementById('branchFilter').value;
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/students?class=${classFilter}&section=${sectionFilter}&branch=${branchFilter}`
+                );
+                if (!response.ok) throw new Error('Failed to fetch students');
+                const students = await response.json();
+                document.getElementById('classInfo').textContent = `Class ${classFilter} - Section ${sectionFilter}`;
+                return students;
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('❌ Failed to load students', 'error');
+                return [];
+            }
+        }
+
+        // ============================================================
+        // SAVE ATTENDANCE
+        // ============================================================
+        async function saveAttendanceToDatabase(attendanceData, pendingSMS) {
+            const today = new Date().toISOString().split('T')[0];
+            const classFilter = document.getElementById('classFilter').value;
+            const sectionFilter = document.getElementById('sectionFilter').value;
+            const branchFilter = document.getElementById('branchFilter').value;
+
+            try {
+                const response = await fetch(`${API_URL}/attendance/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        attendance: attendanceData,
+                        date: today,
+                        class: classFilter,
+                        section: sectionFilter,
+                        branch: branchFilter,
+                        teacherId: 'T001'
+                    })
+                });
+                if (!response.ok) throw new Error('Failed to save attendance');
+
+                if (pendingSMS.length > 0) {
+                    const smsResponse = await fetch(`${API_URL}/sms/save`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ smsLogs: pendingSMS })
+                    });
+                    if (!smsResponse.ok) throw new Error('Failed to save SMS logs');
+                }
+                return true;
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('❌ Failed to save: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        async function init() {
+            const now = new Date();
+            document.getElementById('currentDate').textContent = '📅 ' + now.toLocaleDateString('en-IN', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            const studentsFromDB = await fetchStudents();
+
+            if (studentsFromDB && studentsFromDB.length > 0) {
+                STUDENTS = studentsFromDB.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    code: s.student_code,
+                    parent: s.parent_mobile
+                }));
+                attendanceData = STUDENTS.map(s => ({ id: s.id, status: 'P' }));
+                pendingSMS = [];
+                renderTable();
+                updateSummary();
+                updateSmsLog();
+                showToast(`✅ Loaded ${STUDENTS.length} students`, 'success');
+            } else {
+                document.getElementById('attendanceBody').innerHTML = `
+                    <tr><td colspan="6" style="text-align:center;padding:40px;color:#999;">
+                        No students found. Check your database.
+                    </td></tr>
+                `;
+            }
+        }
+
+        // ============================================================
+        // RENDER TABLE - Each student in a ROW with P, A, L cells
+        // ============================================================
+        function renderTable() {
+            const tbody = document.getElementById('attendanceBody');
+            tbody.innerHTML = '';
+
+            STUDENTS.forEach((student, index) => {
+                const record = attendanceData.find(a => a.id === student.id);
+                const status = record ? record.status : 'P';
+
+                const tr = document.createElement('tr');
+
+                // Column 1: Serial Number
+                const tdSerial = document.createElement('td');
+                tdSerial.textContent = index + 1;
+                tdSerial.style.fontWeight = '500';
+                tdSerial.style.color = '#888';
+
+                // Column 2: Student Name
+                const tdName = document.createElement('td');
+                tdName.innerHTML = `<span class="student-name">${student.name}</span>`;
+
+                // Column 3: Student Code
+                const tdCode = document.createElement('td');
+                tdCode.innerHTML = `<span class="student-code">${student.code}</span>`;
+
+                // Column 4: PRESENT (P) - Green Box
+                const tdP = document.createElement('td');
+                tdP.style.textAlign = 'center';
+                const pCell = createStatusCell('P', status, student.id);
+                tdP.appendChild(pCell);
+
+                // Column 5: ABSENT (A) - Red Box
+                const tdA = document.createElement('td');
+                tdA.style.textAlign = 'center';
+                const aCell = createStatusCell('A', status, student.id);
+                tdA.appendChild(aCell);
+
+                // Column 6: LATE (L) - Pink Box
+                const tdL = document.createElement('td');
+                tdL.style.textAlign = 'center';
+                const lCell = createStatusCell('L', status, student.id);
+                tdL.appendChild(lCell);
+
+                tr.appendChild(tdSerial);
+                tr.appendChild(tdName);
+                tr.appendChild(tdCode);
+                tr.appendChild(tdP);
+                tr.appendChild(tdA);
+                tr.appendChild(tdL);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ============================================================
+        // CREATE STATUS CELL - Colored box with P, A, or L
+        // ============================================================
+        function createStatusCell(type, currentStatus, studentId) {
+            const div = document.createElement('div');
+            div.className = 'status-cell';
+            div.textContent = type;
+
+            // Add the color class (present/absent/late)
+            div.classList.add(type.toLowerCase());
+
+            // If this status is NOT the current one, make it inactive (dimmed)
+            if (currentStatus !== type) {
+                div.classList.add('inactive');
+            }
+
+            // Click handler
+            div.addEventListener('click', function(e) {
+                e.stopPropagation();
+                handleStatusClick(studentId, type);
+            });
+
+            return div;
+        }
+
+        // ============================================================
+        // HANDLE STATUS CLICK
+        // ============================================================
+        function handleStatusClick(studentId, clickedStatus) {
+            const student = STUDENTS.find(s => s.id === studentId);
+            if (!student) return;
+
+            const record = attendanceData.find(a => a.id === studentId);
+            if (!record) return;
+
+            // Toggle: If clicking active status, go to P; otherwise set clicked
+            if (record.status === clickedStatus) {
+                record.status = 'P';
+            } else {
+                record.status = clickedStatus;
+            }
+
+            // Update pending SMS
+            if (record.status === 'A' || record.status === 'L') {
+                const statusLabel = record.status === 'A' ? 'Absent' : 'Late';
+                const existingIndex = pendingSMS.findIndex(s => s.studentId === studentId);
+
+                if (existingIndex === -1) {
+                    pendingSMS.push({
+                        studentId: studentId,
+                        name: student.name,
+                        status: statusLabel,
+                        statusClass: record.status === 'A' ? 'absent' : 'late',
+                        parent: student.parent
+                    });
+                } else {
+                    pendingSMS[existingIndex].status = statusLabel;
+                    pendingSMS[existingIndex].statusClass = record.status === 'A' ? 'absent' : 'late';
+                }
+            } else {
+                pendingSMS = pendingSMS.filter(s => s.studentId !== studentId);
+            }
+
+            renderTable();
+            updateSummary();
+            updateSmsLog();
+        }
+
+        // ============================================================
+        // UPDATE SUMMARY
+        // ============================================================
+        function updateSummary() {
+            const total = STUDENTS.length;
+            const present = attendanceData.filter(a => a.status === 'P').length;
+            const absent = attendanceData.filter(a => a.status === 'A').length;
+            const late = attendanceData.filter(a => a.status === 'L').length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('presentCount').textContent = present;
+            document.getElementById('absentCount').textContent = absent;
+            document.getElementById('lateCount').textContent = late;
+        }
+
+        // ============================================================
+        // UPDATE SMS LOG
+        // ============================================================
+        function updateSmsLog() {
+            const logContainer = document.getElementById('smsLogItems');
+            const logDiv = document.getElementById('smsLog');
+            const smsCount = document.getElementById('smsCount');
+
+            if (pendingSMS.length === 0) {
+                logDiv.classList.remove('show');
+                return;
+            }
+
+            logDiv.classList.add('show');
+            smsCount.textContent = pendingSMS.length;
+            logContainer.innerHTML = '';
+
+            pendingSMS.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'sms-log-item';
+                item.innerHTML = `
+                    <span>
+                        <span class="name">${log.name}</span>
+                        <span style="color:#888;font-size:12px;margin-left:8px;">📱 ${log.parent}</span>
+                    </span>
+                    <span class="status-badge ${log.statusClass}">${log.status}</span>
+                `;
+                logContainer.appendChild(item);
+            });
+        }
+
+        // ============================================================
+        // SUBMIT ATTENDANCE
+        // ============================================================
+        async function submitAttendance() {
+            if (pendingSMS.length === 0) {
+                showToast('✅ All students are present. No SMS to send.', 'success');
+                return;
+            }
+
+            const confirmMsg = `📨 Send SMS to ${pendingSMS.length} parent(s)?\n\n` +
+                              pendingSMS.map(s => `${s.name}: ${s.status}`).join('\n');
+            
+            if (!confirm(confirmMsg)) return;
+
+            const btn = document.querySelector('.btn-danger');
+            btn.textContent = '⏳ Saving...';
+            btn.disabled = true;
+
+            const success = await saveAttendanceToDatabase(attendanceData, pendingSMS);
+
+            if (success) {
+                showToast(`✅ ${pendingSMS.length} SMS sent and attendance saved!`, 'success');
+                pendingSMS = [];
+                updateSmsLog();
+            }
+
+            btn.textContent = '📨 Submit & Send SMS';
+            btn.disabled = false;
+        }
+
+        // ============================================================
+        // BULK ACTIONS
+        // ============================================================
+        function markAllPresent() {
+            if (!confirm('Mark all students as Present?')) return;
+            attendanceData.forEach(a => a.status = 'P');
+            pendingSMS = [];
+            renderTable();
+            updateSummary();
+            updateSmsLog();
+            showToast('✅ All students marked Present', 'success');
+        }
+
+        function resetAttendance() {
+            if (!confirm('Reset attendance? All changes will be lost.')) return;
+            attendanceData.forEach(a => a.status = 'P');
+            pendingSMS = [];
+            renderTable();
+            updateSummary();
+            updateSmsLog();
+            showToast('🔄 Attendance reset', 'info');
+        }
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // ============================================================
+        // FILTERS
+        // ============================================================
+        document.getElementById('branchFilter').addEventListener('change', init);
+        document.getElementById('classFilter').addEventListener('change', init);
+        document.getElementById('sectionFilter').addEventListener('change', init);
+
+        // ============================================================
+        // START
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+</body>
+</html>

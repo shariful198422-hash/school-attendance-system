@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Add Student</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 16px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .header h1 { font-size: 22px; }
+        .header .subtitle { font-size: 14px; opacity: 0.9; margin-top: 4px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 4px;
+        }
+        .form-group label .required {
+            color: #f44336;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            background: white;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            color: white;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-success { background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%); }
+        .btn-success:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-secondary { background: #667eea; margin-top: 10px; }
+
+        .nav-links {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: #f0f2ff;
+            transition: background 0.2s;
+        }
+        .nav-links a:hover { background: #e0e4ff; }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.4s ease;
+            z-index: 999;
+            max-width: 90%;
+            text-align: center;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.success { background: #4CAF50; }
+        .toast.error { background: #f44336; }
+        .toast.info { background: #667eea; }
+
+        .success-box {
+            display: none;
+            background: #e8f5e9;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            margin-top: 16px;
+            color: #2e7d32;
+        }
+        .success-box.show { display: block; }
+        .success-box .check { font-size: 48px; display: block; }
+
+        .hint {
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #0d47a1;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .header { padding: 16px; }
+            .header h1 { font-size: 18px; }
+            .card { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast" class="toast"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>📚 Add Student</h1>
+            <div class="subtitle">Enter student details to add to database</div>
+        </div>
+
+        <div class="card">
+            <form id="studentForm" autocomplete="off">
+                
+                <!-- 1. UNIQUE ID -->
+                <div class="form-group">
+                    <label>Unique ID <span class="required">*</span></label>
+                    <input type="text" id="uniqueId" placeholder="e.g., AADHAR123, SID001" required>
+                </div>
+
+                <!-- 2. STUDENT CODE -->
+                <div class="form-group">
+                    <label>Student Code <span class="required">*</span></label>
+                    <input type="text" id="studentCode" placeholder="e.g., 2024001" required>
+                </div>
+
+                <!-- 3. FULL NAME -->
+                <div class="form-group">
+                    <label>Full Name <span class="required">*</span></label>
+                    <input type="text" id="studentName" placeholder="e.g., Aarav Sharma" required>
+                </div>
+
+                <!-- 4. CLASS - DROPDOWN -->
+                <div class="form-group">
+                    <label>Class <span class="required">*</span></label>
+                    <select id="studentClass" required>
+                        <option value="">Select Class</option>
+                        <option value="Play">Play</option>
+                        <option value="Nursery">Nursery</option>
+                        <option value="KG">KG</option>
+                        <option value="1">Class 1</option>
+                        <option value="2">Class 2</option>
+                        <option value="3">Class 3</option>
+                        <option value="4">Class 4</option>
+                        <option value="5" selected>Class 5</option>
+                        <option value="6">Class 6</option>
+                        <option value="7">Class 7</option>
+                        <option value="8">Class 8</option>
+                        <option value="9">Class 9</option>
+                        <option value="10">Class 10</option>
+                        <option value="11">Class 11</option>
+                        <option value="12">Class 12</option>
+                    </select>
+                </div>
+
+                <!-- 5. SECTION - TEXT INPUT -->
+                <div class="form-group">
+                    <label>Section <span class="required">*</span></label>
+                    <input type="text" id="studentSection" placeholder="e.g., A, B, or C" required>
+                </div>
+
+                <!-- 6. BRANCH - TEXT INPUT -->
+                <div class="form-group">
+                    <label>Branch</label>
+                    <input type="text" id="studentBranch" placeholder="e.g., Main, Branch 1, or Branch 2">
+                </div>
+
+                <!-- 7. PARENT MOBILE -->
+                <div class="form-group">
+                    <label>Parent Mobile</label>
+                    <input type="tel" id="parentMobile" placeholder="+919876543210">
+                </div>
+
+                <!-- 8. PARENT NAME -->
+                <div class="form-group">
+                    <label>Parent Name</label>
+                    <input type="text" id="parentName" placeholder="e.g., Mr. Sharma">
+                </div>
+
+                <div class="hint">
+                    💡 Unique ID: Any unique identifier like Aadhar, School ID, etc.
+                </div>
+
+                <button type="submit" class="btn btn-success" id="submitBtn">➕ Add Student</button>
+            </form>
+
+            <div class="success-box" id="successBox">
+                <span class="check">✅</span>
+                <strong id="successMessage">Student added successfully!</strong>
+                <button class="btn btn-secondary" onclick="resetForm()">➕ Add Another Student</button>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a href="/">🏠 Home</a>
+            <a href="/login.html">🔐 Login</a>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+
+        document.getElementById('studentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const uniqueId = document.getElementById('uniqueId').value.trim();
+            const studentCode = document.getElementById('studentCode').value.trim();
+            const studentName = document.getElementById('studentName').value.trim();
+
+            // Validation
+            if (!uniqueId) {
+                showToast('❌ Please enter Unique ID', 'error');
+                document.getElementById('uniqueId').focus();
+                return;
+            }
+            if (!studentCode) {
+                showToast('❌ Please enter Student Code', 'error');
+                document.getElementById('studentCode').focus();
+                return;
+            }
+            if (!studentName) {
+                showToast('❌ Please enter Student Name', 'error');
+                document.getElementById('studentName').focus();
+                return;
+            }
+
+            const studentData = {
+                unique_id: uniqueId,
+                student_code: studentCode,
+                name: studentName,
+                class: document.getElementById('studentClass').value,
+                section: document.getElementById('studentSection').value.trim().toUpperCase(),
+                branch: document.getElementById('studentBranch').value.trim() || 'Main',
+                parent_mobile: document.getElementById('parentMobile').value.trim(),
+                parent_name: document.getElementById('parentName').value.trim()
+            };
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Adding...';
+
+            try {
+                const response = await fetch(`${API_URL}/students/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(studentData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('successMessage').textContent = data.message || 'Student added successfully!';
+                    document.getElementById('successBox').classList.add('show');
+                    document.getElementById('studentForm').style.display = 'none';
+                    showToast(data.message || '✅ Student added!', 'success');
+                } else {
+                    showToast('❌ ' + (data.error || 'Failed to add student'), 'error');
+                }
+            } catch (error) {
+                showToast('❌ Connection error: ' + error.message, 'error');
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.textContent = '➕ Add Student';
+        });
+
+        function resetForm() {
+            document.getElementById('studentForm').reset();
+            document.getElementById('successBox').classList.remove('show');
+            document.getElementById('studentForm').style.display = 'block';
+            document.getElementById('uniqueId').focus();
+            showToast('🔄 Ready to add another student', 'info');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('uniqueId').focus();
+        });
+    </script>
+
+</body>
+</html>

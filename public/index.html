@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Attendance System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 16px; }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        .header h1 { font-size: 20px; }
+        .header .subtitle { font-size: 14px; opacity: 0.9; margin-top: 4px; }
+        .header .date { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .filter-group label {
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+        }
+        .filter-group label.branch-label { color: #667eea; }
+        .filter-group label.class-label { color: #4CAF50; }
+        .filter-group label.section-label { color: #FF6B8A; }
+
+        .filters select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        #branchFilter {
+            border-color: #667eea;
+            background: #f0f2ff;
+            color: #4a3f8a;
+        }
+        #classFilter {
+            border-color: #4CAF50;
+            background: #f0faf0;
+            color: #1e5a1e;
+        }
+        #sectionFilter {
+            border-color: #FF6B8A;
+            background: #fff0f3;
+            color: #8a2a4a;
+        }
+
+        .filter-btn {
+            width: 100%;
+            padding: 10px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+            height: 44px;
+        }
+        .filter-btn:active { transform: scale(0.96); }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .summary-card {
+            padding: 14px 10px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+            transition: transform 0.2s ease;
+            cursor: default;
+        }
+        .summary-card:active { transform: scale(0.96); }
+        .summary-card .number { font-size: 28px; font-weight: 700; color: white; }
+        .summary-card .label { font-size: 12px; color: rgba(255,255,255,0.90); margin-top: 2px; font-weight: 500; }
+        .summary-card.total { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .summary-card.present { background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%); }
+        .summary-card.absent { background: linear-gradient(135deg, #e53935 0%, #ef5350 100%); }
+        .summary-card.late { background: linear-gradient(135deg, #fb8c00 0%, #ffa726 100%); }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .table-scroll { overflow-x: auto; padding: 0 4px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 500px;
+        }
+        thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        thead th {
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #666;
+        }
+        thead th:nth-child(4),
+        thead th:nth-child(5),
+        thead th:nth-child(6) {
+            text-align: center;
+            width: 70px;
+        }
+        tbody tr { border-bottom: 1px solid #f0f0f0; }
+        tbody td { padding: 8px 6px; vertical-align: middle; }
+        tbody td:nth-child(4),
+        tbody td:nth-child(5),
+        tbody td:nth-child(6) { text-align: center; }
+
+        .student-name { font-weight: 500; color: #1a1a1a; }
+        .student-code { color: #888; font-size: 12px; }
+
+        .status-cell {
+            display: inline-block;
+            width: 50px;
+            height: 38px;
+            line-height: 38px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+            border: 2px solid transparent;
+            touch-action: manipulation;
+            transition: all 0.2s ease;
+        }
+        .status-cell:active { transform: scale(0.90); }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            flex: 1;
+            min-width: 120px;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-success { background: #4CAF50; color: white; }
+        .btn-danger { background: #f44336; color: white; }
+        .btn-outline { background: white; color: #666; border: 2px solid #ddd; }
+
+        .sms-log {
+            margin-top: 16px;
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            display: none;
+        }
+        .sms-log.show { display: block; }
+        .sms-log h3 {
+            font-size: 14px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sms-log .sms-count {
+            background: #f44336;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .sms-log-item {
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid #667eea;
+        }
+        .sms-log-item .name { font-weight: 500; color: #1a1a1a; }
+        .sms-log-item .status-badge {
+            font-size: 12px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .sms-log-item .status-badge.absent { background: #ffebee; color: #f44336; }
+        .sms-log-item .status-badge.late { background: #fce4ec; color: #FF6B8A; }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.4s ease;
+            z-index: 999;
+            max-width: 90%;
+            text-align: center;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.success { background: #4CAF50; }
+        .toast.error { background: #f44336; }
+        .toast.info { background: #667eea; }
+
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: #f0f2ff;
+            transition: background 0.2s;
+        }
+        .nav-links a:hover { background: #e0e4ff; }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .status-cell { width: 42px; height: 34px; line-height: 34px; font-size: 14px; }
+            .summary { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+            .summary-card { padding: 10px 4px; }
+            .summary-card .number { font-size: 22px; }
+            table { font-size: 13px; min-width: 380px; }
+            .btn { padding: 10px 16px; font-size: 13px; min-width: 80px; }
+            .filters select { padding: 8px 10px; font-size: 13px; }
+            .filter-group { min-width: 70px; }
+            .filter-btn { font-size: 12px; padding: 8px 10px; height: 40px; }
+        }
+        @media (max-width: 400px) {
+            .summary { grid-template-columns: repeat(2, 1fr); }
+            .status-cell { width: 36px; height: 30px; line-height: 30px; font-size: 12px; }
+            table { font-size: 12px; min-width: 320px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast" class="toast"></div>
+
+    <div class="header">
+        <h1>📚 Attendance System</h1>
+        <div class="subtitle" id="classInfo">Loading...</div>
+        <div class="date" id="currentDate"></div>
+    </div>
+
+    <div class="filters">
+        <div class="filter-group">
+            <label class="branch-label">🏫 Branch</label>
+            <select id="branchFilter">
+                <option value="">All Branches</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label class="class-label">📚 Class</label>
+            <select id="classFilter">
+                <option value="">All Classes</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label class="section-label">📋 Section</label>
+            <select id="sectionFilter">
+                <option value="">All Sections</option>
+            </select>
+        </div>
+        <div class="filter-group" style="min-width:80px;flex:0.5;">
+            <label style="visibility:hidden;">Apply</label>
+            <button class="filter-btn" onclick="applyFilters()">🔍 Apply</button>
+        </div>
+    </div>
+
+    <div class="summary">
+        <div class="summary-card total"><div class="number" id="totalCount">0</div><div class="label">Total Students</div></div>
+        <div class="summary-card present"><div class="number" id="presentCount">0</div><div class="label">✅ Present</div></div>
+        <div class="summary-card absent"><div class="number" id="absentCount">0</div><div class="label">❌ Absent</div></div>
+        <div class="summary-card late"><div class="number" id="lateCount">0</div><div class="label">⏰ Late</div></div>
+    </div>
+
+    <div class="table-container">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th style="min-width:120px;">Name</th>
+                        <th style="width:80px;">Code</th>
+                        <th style="width:70px;text-align:center;">P</th>
+                        <th style="width:70px;text-align:center;">A</th>
+                        <th style="width:70px;text-align:center;">L</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceBody">
+                    <tr><td colspan="6" class="loading"><div class="spinner"></div>Loading students...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn btn-success" onclick="markAllPresent()">✅ All Present</button>
+        <button class="btn btn-danger" onclick="submitAttendance()">📨 Submit & Send SMS</button>
+        <button class="btn btn-outline" onclick="resetAttendance()">🔄 Reset</button>
+    </div>
+
+    <div class="sms-log" id="smsLog">
+        <h3>📨 SMS Alerts Ready to Send <span class="sms-count" id="smsCount">0</span></h3>
+        <div id="smsLogItems"></div>
+    </div>
+
+    <div class="nav-links">
+        <a href="/add-student.html">➕ Add Student</a>
+        <a href="/login.html">🔐 Login</a>
+    </div>
+
+    <script>
+        // ============================================================
+        // API URL
+        // ============================================================
+        const API_URL = '/api';
+
+        // ============================================================
+        // STATE
+        // ============================================================
+        let STUDENTS = [];
+        let attendanceData = [];
+        let pendingSMS = [];
+
+        // ============================================================
+        // LOAD FILTER OPTIONS
+        // ============================================================
+        async function loadFilterOptions() {
+            try {
+                const response = await fetch(`${API_URL}/filters`);
+                if (!response.ok) throw new Error('Failed to load filters');
+                const data = await response.json();
+                
+                // Populate Branch
+                const branchSelect = document.getElementById('branchFilter');
+                branchSelect.innerHTML = '<option value="">All Branches</option>';
+                if (data.branches) {
+                    data.branches.forEach(branch => {
+                        const option = document.createElement('option');
+                        option.value = branch;
+                        option.textContent = branch;
+                        branchSelect.appendChild(option);
+                    });
+                }
+
+                // Populate Class
+                const classSelect = document.getElementById('classFilter');
+                classSelect.innerHTML = '<option value="">All Classes</option>';
+                if (data.classes) {
+                    data.classes.forEach(cls => {
+                        const option = document.createElement('option');
+                        option.value = cls;
+                        option.textContent = cls;
+                        classSelect.appendChild(option);
+                    });
+                }
+
+                // Populate Section
+                const sectionSelect = document.getElementById('sectionFilter');
+                sectionSelect.innerHTML = '<option value="">All Sections</option>';
+                if (data.sections) {
+                    data.sections.forEach(section => {
+                        const option = document.createElement('option');
+                        option.value = section;
+                        option.textContent = section;
+                        sectionSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading filters:', error);
+            }
+        }
+
+        // ============================================================
+        // APPLY FILTERS
+        // ============================================================
+        function applyFilters() {
+            const classFilter = document.getElementById('classFilter').value;
+            const sectionFilter = document.getElementById('sectionFilter').value;
+            const branchFilter = document.getElementById('branchFilter').value;
+            
+            // Show loading
+            document.getElementById('attendanceBody').innerHTML = `
+                <tr><td colspan="6" style="text-align:center;padding:40px;color:#888;">
+                    <div class="spinner" style="display:inline-block;"></div><br>
+                    Loading...
+                </td></tr>
+            `;
+            
+            // Reload with filters
+            init();
+        }
+
+        // ============================================================
+        // FETCH STUDENTS
+        // ============================================================
+        async function fetchStudents() {
+            const classFilter = document.getElementById('classFilter').value;
+            const sectionFilter = document.getElementById('sectionFilter').value;
+            const branchFilter = document.getElementById('branchFilter').value;
+
+            try {
+                // Build URL properly
+                let params = [];
+                if (classFilter) params.push(`class=${classFilter}`);
+                if (sectionFilter) params.push(`section=${sectionFilter}`);
+                if (branchFilter) params.push(`branch=${branchFilter}`);
+                
+                let url = `${API_URL}/students`;
+                if (params.length > 0) {
+                    url += '?' + params.join('&');
+                }
+                
+                console.log('Fetching URL:', url);
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch students');
+                const students = await response.json();
+                
+                const classDisplay = classFilter || 'All';
+                const sectionDisplay = sectionFilter || 'All';
+                const branchDisplay = branchFilter || 'All';
+                document.getElementById('classInfo').textContent = `Branch ${branchDisplay} - Class ${classDisplay} - Section ${sectionDisplay}`;
+                return students;
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('❌ Failed to load students', 'error');
+                return [];
+            }
+        }
+
+        // ============================================================
+        // SAVE ATTENDANCE
+        // ============================================================
+        async function saveAttendanceToDatabase(attendanceData, pendingSMS) {
+            const today = new Date().toISOString().split('T')[0];
+            const classFilter = document.getElementById('classFilter').value;
+            const sectionFilter = document.getElementById('sectionFilter').value;
+            const branchFilter = document.getElementById('branchFilter').value;
+
+            try {
+                const response = await fetch(`${API_URL}/attendance/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        attendance: attendanceData,
+                        date: today,
+                        class: classFilter || '5',
+                        section: sectionFilter || 'A',
+                        branch: branchFilter || 'Main',
+                        teacherId: 'T001'
+                    })
+                });
+                if (!response.ok) throw new Error('Failed to save attendance');
+
+                if (pendingSMS.length > 0) {
+                    const smsResponse = await fetch(`${API_URL}/sms/save`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ smsLogs: pendingSMS })
+                    });
+                    if (!smsResponse.ok) throw new Error('Failed to save SMS logs');
+                } // ============================================================
+// SUBMIT ATTENDANCE
+// ============================================================
+async function submitAttendance() {
+    if (pendingSMS.length === 0) {
+        showToast('✅ All students are present. No SMS to send.', 'success');
+        return;
+    }
+
+    const confirmMsg = `📨 Send SMS to ${pendingSMS.length} parent(s)?\n\n` +
+                      pendingSMS.map(s => `${s.name}: ${s.status}`).join('\n');
+    
+    if (!confirm(confirmMsg)) return;
+
+    const btn = document.querySelector('.btn-danger');
+    btn.textContent = '⏳ Saving...';
+    btn.disabled = true;
+
+    try {
+        // 1. Save Attendance
+        const attendanceSuccess = await saveAttendanceToDatabase(attendanceData, pendingSMS);
+        
+        if (!attendanceSuccess) {
+            throw new Error('Failed to save attendance');
+        }
+
+        // 2. Save SMS Logs
+        const smsResponse = await fetch(`${API_URL}/sms/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ smsLogs: pendingSMS })
+        });
+
+        if (!smsResponse.ok) {
+            throw new Error('Failed to save SMS logs');
+        }
+
+        const smsData = await smsResponse.json();
+        
+        showToast(`✅ ${pendingSMS.length} SMS sent and attendance saved!`, 'success');
+        pendingSMS = [];
+        updateSmsLog();
+
+        // Update summary after clearing
+        const present = attendanceData.filter(a => a.status === 'P').length;
+        const absent = attendanceData.filter(a => a.status === 'A').length;
+        const late = attendanceData.filter(a => a.status === 'L').length;
+        showToast(`✅ Submitted! P: ${present} | A: ${absent} | L: ${late}`, 'success');
+
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('❌ ' + error.message, 'error');
+    }
+
+    btn.textContent = '📨 Submit & Send SMS';
+    btn.disabled = false;
+}
+                return true;
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('❌ Failed to save: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        async function init() {
+            const now = new Date();
+            document.getElementById('currentDate').textContent = '📅 ' + now.toLocaleDateString('en-IN', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            const studentsFromDB = await fetchStudents();
+
+            if (studentsFromDB && studentsFromDB.length > 0) {
+                STUDENTS = studentsFromDB.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    code: s.student_code,
+                    parent: s.parent_mobile
+                }));
+                attendanceData = STUDENTS.map(s => ({ id: s.id, status: 'P' }));
+                pendingSMS = [];
+                renderTable();
+                updateSummary();
+                updateSmsLog();
+                showToast(`✅ Loaded ${STUDENTS.length} students`, 'success');
+            } else {
+                document.getElementById('attendanceBody').innerHTML = `
+                    <tr><td colspan="6" style="text-align:center;padding:40px;color:#999;">
+                        No students found. 
+                        <br><br>
+                        <a href="/add-student.html" style="color:#667eea;font-weight:600;">➕ Add Student</a>
+                    </td></tr>
+                `;
+            }
+        }
+
+        // ============================================================
+        // RENDER TABLE
+        // ============================================================
+        function renderTable() {
+            const tbody = document.getElementById('attendanceBody');
+            tbody.innerHTML = '';
+
+            STUDENTS.forEach((student, index) => {
+                const record = attendanceData.find(a => a.id === student.id);
+                const status = record ? record.status : 'P';
+
+                const tr = document.createElement('tr');
+
+                const tdSerial = document.createElement('td');
+                tdSerial.textContent = index + 1;
+                tdSerial.style.fontWeight = '500';
+                tdSerial.style.color = '#888';
+
+                const tdName = document.createElement('td');
+                tdName.innerHTML = `<span class="student-name">${student.name}</span>`;
+
+                const tdCode = document.createElement('td');
+                tdCode.innerHTML = `<span class="student-code">${student.code}</span>`;
+
+                const tdP = document.createElement('td');
+                tdP.style.textAlign = 'center';
+                const pCell = createStatusCell('P', status, student.id);
+                tdP.appendChild(pCell);
+
+                const tdA = document.createElement('td');
+                tdA.style.textAlign = 'center';
+                const aCell = createStatusCell('A', status, student.id);
+                tdA.appendChild(aCell);
+
+                const tdL = document.createElement('td');
+                tdL.style.textAlign = 'center';
+                const lCell = createStatusCell('L', status, student.id);
+                tdL.appendChild(lCell);
+
+                tr.appendChild(tdSerial);
+                tr.appendChild(tdName);
+                tr.appendChild(tdCode);
+                tr.appendChild(tdP);
+                tr.appendChild(tdA);
+                tr.appendChild(tdL);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ============================================================
+        // CREATE STATUS CELL
+        // ============================================================
+        function createStatusCell(type, currentStatus, studentId) {
+            const div = document.createElement('div');
+            div.className = 'status-cell';
+            div.textContent = type;
+
+            const isActive = (currentStatus === type);
+            
+            if (type === 'P') {
+                div.style.backgroundColor = isActive ? '#4CAF50' : '#f1f8e9';
+                div.style.color = isActive ? 'white' : '#a5d6a7';
+                div.style.borderColor = isActive ? '#4CAF50' : '#dcedc8';
+            } else if (type === 'A') {
+                div.style.backgroundColor = isActive ? '#f44336' : '#fce4ec';
+                div.style.color = isActive ? 'white' : '#ef9a9a';
+                div.style.borderColor = isActive ? '#f44336' : '#f8bbd0';
+            } else if (type === 'L') {
+                div.style.backgroundColor = isActive ? '#FFB6C1' : '#fce4ec';
+                div.style.color = isActive ? '#4a1a1a' : '#f8bbd0';
+                div.style.borderColor = isActive ? '#FFB6C1' : '#f8bbd0';
+            }
+
+            div.addEventListener('click', function(e) {
+                e.stopPropagation();
+                handleStatusClick(studentId, type);
+            });
+
+            return div;
+        }
+
+        // ============================================================
+        // HANDLE STATUS CLICK
+        // ============================================================
+        function handleStatusClick(studentId, clickedStatus) {
+            const student = STUDENTS.find(s => s.id === studentId);
+            if (!student) return;
+
+            const record = attendanceData.find(a => a.id === studentId);
+            if (!record) return;
+
+            if (record.status === clickedStatus) {
+                record.status = 'P';
+            } else {
+                record.status = clickedStatus;
+            }
+
+            if (record.status === 'A' || record.status === 'L') {
+                const statusLabel = record.status === 'A' ? 'Absent' : 'Late';
+                const existingIndex = pendingSMS.findIndex(s => s.studentId === studentId);
+
+                if (existingIndex === -1) {
+                    pendingSMS.push({
+                        studentId: studentId,
+                        name: student.name,
+                        status: statusLabel,
+                        statusClass: record.status === 'A' ? 'absent' : 'late',
+                        parent: student.parent
+                    });
+                } else {
+                    pendingSMS[existingIndex].status = statusLabel;
+                    pendingSMS[existingIndex].statusClass = record.status === 'A' ? 'absent' : 'late';
+                }
+            } else {
+                pendingSMS = pendingSMS.filter(s => s.studentId !== studentId);
+            }
+
+            renderTable();
+            updateSummary();
+            updateSmsLog();
+        }
+
+        // ============================================================
+        // UPDATE SUMMARY
+        // ============================================================
+        function updateSummary() {
+            const total = STUDENTS.length;
+            const present = attendanceData.filter(a => a.status === 'P').length;
+            const absent = attendanceData.filter(a => a.status === 'A').length;
+            const late = attendanceData.filter(a => a.status === 'L').length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('presentCount').textContent = present;
+            document.getElementById('absentCount').textContent = absent;
+            document.getElementById('lateCount').textContent = late;
+        }
+
+        // ============================================================
+        // UPDATE SMS LOG
+        // ============================================================
+        function updateSmsLog() {
+            const logContainer = document.getElementById('smsLogItems');
+            const logDiv = document.getElementById('smsLog');
+            const smsCount = document.getElementById('smsCount');
+
+            if (pendingSMS.length === 0) {
+                logDiv.classList.remove('show');
+                return;
+            }
+
+            logDiv.classList.add('show');
+            smsCount.textContent = pendingSMS.length;
+            logContainer.innerHTML = '';
+
+            pendingSMS.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'sms-log-item';
+                item.innerHTML = `
+                    <span>
+                        <span class="name">${log.name}</span>
+                        <span style="color:#888;font-size:12px;margin-left:8px;">📱 ${log.parent}</span>
+                    </span>
+                    <span class="status-badge ${log.statusClass}">${log.status}</span>
+                `;
+                logContainer.appendChild(item);
+            });
+        }
+
+        // ============================================================
+        // SUBMIT ATTENDANCE
+        // ============================================================
+        async function submitAttendance() {
+            if (pendingSMS.length === 0) {
+                showToast('✅ All students are present. No SMS to send.', 'success');
+                return;
+            }
+
+            const confirmMsg = `📨 Send SMS to ${pendingSMS.length} parent(s)?\n\n` +
+                              pendingSMS.map(s => `${s.name}: ${s.status}`).join('\n');
+            
+            if (!confirm(confirmMsg)) return;
+
+            const btn = document.querySelector('.btn-danger');
+            btn.textContent = '⏳ Saving...';
+            btn.disabled = true;
+
+            const success = await saveAttendanceToDatabase(attendanceData, pendingSMS);
+
+            if (success) {
+                showToast(`✅ ${pendingSMS.length} SMS sent and attendance saved!`, 'success');
+                pendingSMS = [];
+                updateSmsLog();
+            }
+
+            btn.textContent = '📨 Submit & Send SMS';
+            btn.disabled = false;
+        }
+
+        // ============================================================
+        // BULK ACTIONS
+        // ============================================================
+        function markAllPresent() {
+            if (!confirm('Mark all students as Present?')) return;
+            attendanceData.forEach(a => a.status = 'P');
+            pendingSMS = [];
+            renderTable();
+            updateSummary();
+            updateSmsLog();
+            showToast('✅ All students marked Present', 'success');
+        }
+
+        function resetAttendance() {
+            if (!confirm('Reset attendance? All changes will be lost.')) return;
+            attendanceData.forEach(a => a.status = 'P');
+            pendingSMS = [];
+            renderTable();
+            updateSummary();
+            updateSmsLog();
+            showToast('🔄 Attendance reset', 'info');
+        }
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // ============================================================
+        // START
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFilterOptions();
+            init();
+        });
+    </script>
+
+</body>
+</html>
