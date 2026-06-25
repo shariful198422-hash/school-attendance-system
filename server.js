@@ -162,33 +162,41 @@ app.post('/api/logout', async (req, res) => {
 });
 
 // ============================================================
-// GET FILTER OPTIONS - FIXED!
-// ============================================================app.get('/api/filters', async (req, res) => {
+// GET FILTER OPTIONS - SIMPLEST VERSION
+// ============================================================
+app.get('/api/filters', async (req, res) => {
     try {
+        // Get all distinct values (ignore NULL only)
         const [branches] = await promisePool.query(
-            'SELECT DISTINCT branch FROM students WHERE branch IS NOT NULL ORDER BY branch'
+            'SELECT DISTINCT branch FROM students ORDER BY branch'
         );
         const [classes] = await promisePool.query(
-            'SELECT DISTINCT class FROM students WHERE class IS NOT NULL ORDER BY class'
+            'SELECT DISTINCT class FROM students ORDER BY class'
         );
         const [sections] = await promisePool.query(
-            'SELECT DISTINCT section FROM students WHERE section IS NOT NULL ORDER BY section'
+            'SELECT DISTINCT section FROM students ORDER BY section'
         );
 
-        console.log('Branches found:', branches.length);
-        console.log('Classes found:', classes.length);
-        console.log('Sections found:', sections.length);
+        // Filter out any null/undefined values (just in case)
+        const branchList = branches.map(b => b.branch).filter(b => b !== null && b !== '');
+        const classList = classes.map(c => c.class).filter(c => c !== null && c !== '');
+        const sectionList = sections.map(s => s.section).filter(s => s !== null && s !== '');
+
+        console.log('Branches found:', branchList);
+        console.log('Classes found:', classList);
+        console.log('Sections found:', sectionList);
 
         res.json({
-            branches: branches.map(b => b.branch),
-            classes: classes.map(c => c.class),
-            sections: sections.map(s => s.section)
+            branches: branchList,
+            classes: classList,
+            sections: sectionList
         });
     } catch (error) {
         console.error('Error fetching filters:', error);
         res.status(500).json({ error: error.message });
     }
 });
+
 // ============================================================
 // GET STUDENTS
 // ============================================================
