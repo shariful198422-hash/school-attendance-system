@@ -17,7 +17,6 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
 
-// Database connection
 // ============================================================
 // DATABASE CONNECTION - READ FROM ENVIRONMENT VARIABLES
 // ============================================================
@@ -35,178 +34,20 @@ const pool = mysql.createPool({
     }
 });
 
-// Log the connection config (helps debugging)
 console.log('📊 Database Configuration:');
 console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
 console.log(`   User: ${process.env.DB_USER || 'root'}`);
 console.log(`   Database: ${process.env.DB_NAME || 'school_attendance'}`);
 console.log(`   Port: ${parseInt(process.env.DB_PORT) || 3306}`);
+console.log(`   SSL: ${process.env.DB_SSL === 'true' ? 'Enabled' : 'Disabled'}`);
+
 const promisePool = pool.promise();
 
 // ============================================================
-// USER LOGIN
-// ============================================================
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password required' });
-        }
-
-        const [rows] = await promisePool.query(
-            'SELECT * FROM users WHERE username = ?',
-            [username]
-        );
-
-        if (rows.length === 0) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const user = rows[0];
-
-        // Simple password check (use bcrypt in production)
-        if (user.password !== password) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        // Generate simple token (use JWT in production)
-        const token = Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
-
-        // Store session
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 24);
-
-        await promisePool.query(
-            'INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)',
-            [user.id, token, expiresAt]
-        );
-
-        res.json({
-            success: true,
-            message: 'Login successful',
-            token: token,
-            user: {
-                id: user.id,
-                username: user.username,
-                name: user.name,
-                role: user.role,
-                assigned_class: user.assigned_class,
-                assigned_section: user.assigned_section,
-                assigned_branch: user.assigned_branch
-            }
-        });
-
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ============================================================
-// VERIFY TOKEN
-// ============================================================
-app.post('/api/verify', async (req, res) => {
-    try {
-        const { token } = req.body;
-
-        if (!token) {
-            return res.status(401).json({ error: 'No token provided' });
-        }
-
-        const [rows] = await promisePool.query(
-            'SELECT * FROM sessions WHERE token = ? AND expires_at > NOW()',
-            [token]
-        );
-
-        if (rows.length === 0) {
-            return res.status(401).json({ error: 'Invalid or expired token' });
-        }
-
-        const [userRows] = await promisePool.query(
-            'SELECT id, username, name, role, assigned_class, assigned_section, assigned_branch FROM users WHERE id = ?',
-            [rows[0].user_id]
-        );
-
-        if (userRows.length === 0) {
-            return res.status(401).json({ error: 'User not found' });
-        }
-
-        res.json({
-            success: true,
-            user: userRows[0]
-        });
-
-    } catch (error) {
-        console.error('Verify error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ============================================================
-// LOGOUT
-// ============================================================
-app.post('/api/logout', async (req, res) => {
-    try {
-        const { token } = req.body;
-
-        if (token) {
-            await promisePool.query(
-                'DELETE FROM sessions WHERE token = ?',
-                [token]
-            );
-        }
-
-        res.json({ success: true, message: 'Logged out successfully' });
-
-    } catch (error) {
-        console.error('Logout error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ============================================================
-// GET FILTER OPTIONS (with user restrictions)
+// GET FILTER OPTIONS - FIXED!
 // ============================================================
 app.get('/api/filters', async (req, res) => {
     try {
-        const { userId, assigned_class, assigned_section, assigned_branch } = req.query;
-
-        let classQuery = 'SELECT DISTINCT class FROM students WHERE 1=1';
-        let sectionQuery = 'SELECT DISTINCT section FROM students WHERE 1=1';
-        let branchQuery = 'SELECT DISTINCT branch FROM students WHERE 1=1';
-        const params = [];
-
-        // If user has assigned class, only show that class
-        if (assigned_class) {
-            classQuery += ' AND class = ?';
-            sectionQuery += ' AND class = ?';
-            branchQuery += ' AND class = ?';
-            params.push(assigned_class);
-        }
-
-        // If user has assigned section
-        if (assigned_section) {
-            classQuery += ' AND section = ?';
-            sectionQuery += ' AND section = ?';
-            branchQuery += ' AND section = ?';
-            params.push(assigned_section);
-        }
-
-        // If user has assigned branch
-        if (assigned_branch) {
-            classQuery += ' AND branch = ?';
-            sectionQuery += ' AND branch = ?';
-            branchQuery += ' AND branch = ?';
-            params.push(assigned_branch);
-        }
-
-        // Create separate query arrays with correct parameters
-        let classParams = [...params];
-        let sectionParams = [...params];
-        let branchParams = [...params];
-
-        // Actually just use simple queries for now
         const [branches] = await promisePool.query(
             'SELECT DISTINCT branch FROM students WHERE branch IS NOT NULL AND branch != "" ORDER BY branch'
         );
@@ -216,6 +57,10 @@ app.get('/api/filters', async (req, res) => {
         const [sections] = await promisePool.query(
             'SELECT DISTINCT section FROM students WHERE section IS NOT NULL AND section != "" ORDER BY section'
         );
+
+        console.log('Branches found:', branches.length);
+        console.log('Classes found:', classes.length);
+        console.log('Sections found:', sections.length);
 
         res.json({
             branches: branches.map(b => b.branch),
@@ -229,36 +74,24 @@ app.get('/api/filters', async (req, res) => {
 });
 
 // ============================================================
-// GET STUDENTS (with user restrictions)
+// GET STUDENTS
 // ============================================================
 app.get('/api/students', async (req, res) => {
     try {
-        const { class: className, section, branch, userId, assigned_class, assigned_section, assigned_branch } = req.query;
+        const { class: className, section, branch } = req.query;
 
         let query = 'SELECT * FROM students WHERE 1=1';
         const params = [];
 
-        // If user has assigned class, enforce it
-        if (assigned_class) {
-            query += ' AND class = ?';
-            params.push(assigned_class);
-        } else if (className) {
+        if (className) {
             query += ' AND class = ?';
             params.push(className);
         }
-
-        if (assigned_section) {
-            query += ' AND section = ?';
-            params.push(assigned_section);
-        } else if (section) {
+        if (section) {
             query += ' AND section = ?';
             params.push(section);
         }
-
-        if (assigned_branch) {
-            query += ' AND branch = ?';
-            params.push(assigned_branch);
-        } else if (branch) {
+        if (branch) {
             query += ' AND branch = ?';
             params.push(branch);
         }
@@ -430,10 +263,41 @@ app.post('/api/sms/save', async (req, res) => {
 });
 
 // ============================================================
+// TEST DATABASE CONNECTION
+// ============================================================
+app.get('/api/test-db', async (req, res) => {
+    try {
+        const [result] = await promisePool.query('SELECT 1+1 AS result');
+        res.json({ 
+            success: true, 
+            message: '✅ Database connected successfully!',
+            result: result,
+            config: {
+                host: process.env.DB_HOST || 'localhost',
+                user: process.env.DB_USER || 'root',
+                database: process.env.DB_NAME || 'school_attendance',
+                port: parseInt(process.env.DB_PORT) || 3306
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            config: {
+                host: process.env.DB_HOST || 'localhost',
+                user: process.env.DB_USER || 'root',
+                database: process.env.DB_NAME || 'school_attendance',
+                port: parseInt(process.env.DB_PORT) || 3306
+            }
+        });
+    }
+});
+
+// ============================================================
 // START SERVER
 // ============================================================
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📊 Database: school_attendance`);
-    console.log(`🗄️  Host: localhost`);
+    console.log(`📊 Database: ${process.env.DB_NAME || 'school_attendance'}`);
+    console.log(`🗄️  Host: ${process.env.DB_HOST || 'localhost'}`);
 });
